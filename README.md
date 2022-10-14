@@ -59,7 +59,7 @@ done = dbx.upload_file(LOCAL, REMOTE)
 print('Uploaded successfully?', done, '\n')
 
 #download file
-LOCAL = 'AVLib/AVStore/local_data/dropbox_download.json'
+LOCAL = 'config/StorageUtils/dropbox_download.json'
 done = dbx.download_file(REMOTE, LOCAL)
 print('Downloaded successfully?', done, '\n')
 

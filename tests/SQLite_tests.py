@@ -7,6 +7,12 @@ CONFIG = 'config/StorageUtils/db_config.yaml'
 # open database
 db = SQLite(CONFIG)
 
+# print schema
+db.schema()
+
+# count rows
+print('Number of rows: ', db.size('test'))
+
 # insert rows
 values = [
 	(1,'Mark','Twain',23),
