@@ -3,7 +3,6 @@ from JSONWrap.utils import load
 import sqlite3
 from pathlib import Path
 from typing import Iterable
-from typing import Any
 
 
 class SQLite:
@@ -22,7 +21,7 @@ class SQLite:
 			**kwargs :
 				same_thread (bool) : database connection used only
 					by a single thread. Defaults to True.
-				config_file : path to configuration file (YAML/JSON).
+				config : path to configuration file (YAML/JSON).
 					Syntax:
 						create :
 							- query
@@ -37,8 +36,8 @@ class SQLite:
 		"""
 		
 		try:
-			self.cfg = load(kwargs['config_file'])
-			del kwargs['config_file']
+			self.cfg = load(kwargs['config'])
+			del kwargs['config']
 		except KeyError:
 			self.cfg = None
 		
@@ -72,6 +71,49 @@ class SQLite:
 		self.db.close()
 	
 	
+	def _exe(self, **kwargs) -> sqlite3.Cursor:
+		"""
+		
+		Execute a query on the database.
+		
+		Args :
+			**kwargs :
+				name (str) : execute a default query from config_file.
+					It has precedence on 'query'.
+				query (str) : execute a custom query.
+				format (dict) : format query string with dictionary.
+				params (tuple or list[tuple]) : parameters for parametrized
+					query.
+		
+		Returns :
+			sqlite Cursor
+		
+		"""
+
+		query = None
+		if 'name' in kwargs:
+			try:
+				query = self.cfg['defaults'][kwargs['name']]
+			except KeyError:
+				raise RuntimeError(f'Unknwon default query {kwargs["name"]}')
+		elif 'query' in kwargs:
+			query = kwargs['query']
+		else:
+			raise RuntimeError('Execute requires a query')
+		
+		if 'format' in kwargs:
+			query = query.format(**kwargs['format'])
+		
+		with self.db as conn:
+			try:
+				if isinstance(kwargs['params'], list):
+					return conn.executemany(query, kwargs['params'])
+				else:
+					return conn.execute(query, kwargs['params'])
+			except KeyError:
+				return conn.execute(query)
+	
+	
 	def schema(self) -> None:
 		"""
 		
@@ -82,8 +124,8 @@ class SQLite:
 		with self.db as conn:
 			query = "SELECT name FROM sqlite_master WHERE type='table';"
 			for row in conn.execute(query):
-				query = f"SELECT sql FROM sqlite_schema WHERE name='{row[0]}';"
-				print(conn.execute(query).fetchall()[0][0], '\n')
+				cursor = conn.execute(f'SELECT * FROM {row[0]};')
+				print([description[0] for description in cursor.description])
 	
 	
 	def size(self, table_name:str) -> int:
@@ -105,19 +147,13 @@ class SQLite:
 		return count
 
 
-	def execute(self, **kwargs) -> Iterable:
+	def yields(self, **kwargs) -> Iterable:
 		"""
 		
-		Execute a query on the database.
+		Yield the results of a query on the database.
 		
 		Args :
-			**kwargs :
-				name (str) : execute a default query from config_file.
-					It has precedence on 'query'.
-				query (str) : execute a custom query.
-				format (dict) : format query string with dictionary.
-				params (tuple or list[tuple]) : parameters for parametrized
-					query.
+			**kwargs : see _exe() for details.
 		
 		Returns :
 			Yields result of query
@@ -125,69 +161,22 @@ class SQLite:
 		
 		"""
 		
-		query = None
-		if 'name' in kwargs:
-			try:
-				query = self.cfg['defaults'][kwargs['name']]
-			except KeyError:
-				raise RuntimeError(f'Unknwon default query {kwargs["name"]}')
-		elif 'query' in kwargs:
-			query = kwargs['query']
-		else:
-			raise RuntimeError('Execute requires a query')
+		for row in self._exe(**kwargs):
+			yield row
+	
+	
+	def fetch(self, **kwargs) -> list[tuple]:
+		"""
 		
-		if 'format' in kwargs:
-			query = query.format(**kwargs['format'])
+		Execute and fetch the results of a query on the database.
 		
-		with self.db as conn:
-			cur = None
-			try:
-				if isinstance(kwargs['params'], list):
-					cur = conn.executemany(query, kwargs['params'])
-				else:
-					cur = conn.execute(query, kwargs['params'])
-			except KeyError:
-				cur = conn.execute(query)
-			
-			for row in cur:
-				yield row
+		Args :
+			**kwargs : see _exe() for details.
+		
+		Returns :
+			list of resulting tuples.
 				
 		
+		"""
 		
-		
-		 
-
-# 	def insert(self, query_name, values:list[tuple]) -> None:
-# 		"""
-# 		
-# 		Insert rows in database.
-# 		
-# 		Args:
-# 			query_name : table where to insert.
-# 				Must match with key inside 'insert' in the config_file.
-# 			values : list of tuples with row values.
-
-# 		"""
-# 		
-# 		query = self.cfg['insert'][query_name]
-# 		with self.db as conn:
-# 			conn.executemany(query, values)
-
-# 	
-# 	def select(self, query_name, **kwargs) -> Iterable[tuple]:
-# 		"""
-# 		
-# 		Yields rows from database.
-# 		
-# 		Args:
-# 			query_name : select query to execute.
-# 				Must match with key inside 'select' in the config_file.
-# 			**kwargs :
-# 				parameters : list of parameters
-
-# 		"""
-# 		
-# 		query = self.cfg['select'][query_name]
-# 		with self.db as conn:
-# 			for row in conn.execute(query, **kwargs):
-# 				yield row
+		return self._exe(**kwargs).fetchall()
