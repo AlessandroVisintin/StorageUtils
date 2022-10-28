@@ -2,7 +2,7 @@ from JSONWrap.utils import load
 
 import sqlite3
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Callable
 
 
 class SQLite:
@@ -52,7 +52,7 @@ class SQLite:
 					conn.execute(query)
 		except sqlite3.OperationalError as e:
 			raise RuntimeError(e)
-		except KeyError:
+		except (KeyError, TypeError):
 			pass
 
 
@@ -124,8 +124,10 @@ class SQLite:
 		with self.db as conn:
 			query = "SELECT name FROM sqlite_master WHERE type='table';"
 			for row in conn.execute(query):
+				print(row[0])
 				cursor = conn.execute(f'SELECT * FROM {row[0]};')
 				print([description[0] for description in cursor.description])
+				print('\n')
 	
 	
 	def size(self, table_name:str) -> int:
@@ -145,6 +147,22 @@ class SQLite:
 			query = f'SELECT COUNT(*) AS count_{table_name} FROM {table_name};'
 			count = conn.execute(query).fetchall()[0][0]
 		return count
+	
+	
+	def add_function(self, name:str, params:int, reference:Callable) -> None:
+		"""
+		
+		Add session function to perform queries.
+		
+		Args : 
+			name : name of the function
+			params : number of params of the function
+			reference : reference to the function
+		
+		"""
+		
+		with self.db as conn:
+			conn.create_function(name, params, reference)
 
 
 	def yields(self, **kwargs) -> Iterable:
