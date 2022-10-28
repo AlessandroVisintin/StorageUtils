@@ -2,7 +2,7 @@ from JSONWrap.utils import load
 
 import sqlite3
 from pathlib import Path
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Union
 
 
 class SQLite:
@@ -163,6 +163,64 @@ class SQLite:
 		
 		with self.db as conn:
 			conn.create_function(name, params, reference)
+
+
+	def add_index(self, name:str, table:str,
+					cols:Union[str,Iterable], **kwargs) -> None:
+		"""
+		
+		Add index to database.
+		
+		Args:
+			name : name of the index.
+			table : name of the table.
+			cols : column(s) to index.
+			**kwargs :
+				unique : add UNIQUE keyword
+				if_not_exists : add IF NOT EXISTS keyword
+	
+		"""
+		
+		return self._exe(
+			
+			query=('CREATE {unique} INDEX {if_not_exists} {name} '
+				'ON {table}({cols});'),
+			
+			format={
+				'unique' : 'UNIQUE' if 'unique' in kwargs and kwargs['unique'] else '',
+				'if_not_exists' : 'IF NOT EXISTS' if 'if_not_exists' in kwargs and kwargs['if_not_exists'] else '',
+				'name' : name,
+				'table' : table,
+				'cols' : cols if isinstance(cols,str) else ','.join(str(x) for x in cols)				
+				}
+			
+			).fetchall()
+	
+	
+	def drop(self, kind:str, name:str, **kwargs) -> None:
+		"""
+
+		Drop table.
+
+		Args:
+			kind : [view | table | index]
+			name : name of the index.
+			**kwargs :
+				if_exists : add IF NOT EXISTS keyword
+
+		"""
+		
+		return self._exe(
+			
+			query=('DROP {kind} {if_exists} {table};'),
+			
+			format={
+				'kind' : kind.upper(),
+				'if_exists' : 'IF EXISTS' if 'if_exists' in kwargs and kwargs['if_exists'] else '',
+				'table' : name
+				}
+			
+			).fetchall() 
 
 
 	def yields(self, **kwargs) -> Iterable:
