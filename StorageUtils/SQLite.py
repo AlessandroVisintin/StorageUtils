@@ -122,10 +122,10 @@ class SQLite:
 		"""
 		
 		with self.db as conn:
-			query = "SELECT name FROM sqlite_master WHERE type='table';"
+			query = 'SELECT * FROM sqlite_master;'
 			for row in conn.execute(query):
-				print(row[0])
-				cursor = conn.execute(f'SELECT * FROM {row[0]};')
+				print(f'{row[0]} - {row[1]} - {row[2]}')
+				cursor = conn.execute(f'SELECT * FROM {row[2]};')
 				print([description[0] for description in cursor.description])
 				print('\n')
 	
