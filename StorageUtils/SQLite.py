@@ -256,3 +256,27 @@ class SQLite:
 		"""
 		
 		return self._exe(**kwargs).fetchall()
+
+
+	def fetchmany(self, batch:int, **kwargs) -> Iterable:
+		"""
+		
+		Execute and iteratively fetch the results of a query on the database.
+		
+		Args :
+			batch : dim of batch.
+			**kwargs : see _exe() for details.
+		
+		Returns :
+			yields
+			list of resulting tuples.
+				
+		
+		"""
+		
+		conn = self._exe(**kwargs)
+		while True:
+			c = conn.fetchmany(batch)
+			if not c:
+				break
+			yield c
